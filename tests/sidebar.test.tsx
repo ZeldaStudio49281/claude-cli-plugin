@@ -187,7 +187,7 @@ test('i terminalen: klick fäller ut, högerklick öppnar menyn med Starta och T
   await $.tool.call(TWO_TASKS)
   const ui = await $.ui.mount(PANE)
 
-  expect(await ui.find({ in: 'tasks', text: /\[>\] Skapa API/ })).toBeDefined()
+  expect(await ui.find({ in: 'tasks', text: /► Skapa API/ })).toBeDefined()
   expect(await ui.find({ in: 'tasks', text: /Endpoints/ })).toBeUndefined()
 
   // Rad 0 är uppgift 1:s rubrik.

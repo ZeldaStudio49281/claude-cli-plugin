@@ -48,6 +48,19 @@ kolumner.
 
 `.git` och `node_modules` visas inte.
 
+### Ikoner
+
+Raderna har ikoner: mappar `■` och `□` (öppen), filer efter typ (`λ` kod,
+`≡` konfiguration, `¶` text, `◊` bilder, `§` licens och lås, `∙` övrigt) och
+uppgifter efter status (`√` klar, `►` på tur, `○` öppen). Inställningen
+**Ikoner** i `/config` väljer uppsättning:
+
+| Värde | Ger |
+| --- | --- |
+| `unicode` (standard) | Tecken som alla vanliga terminaltypsnitt har |
+| `nerdfont` | Filtypsikoner ur Nerd Fonts; kräver ett Nerd Font-typsnitt |
+| `none` | Inga ikoner; uppgifterna märks med `[ ]`, `[>]` och `[x]` |
+
 ### Uppgiftslistan (`TODO.md`)
 
 | Gör | Händer |

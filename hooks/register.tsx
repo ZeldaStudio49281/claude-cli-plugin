@@ -3,7 +3,9 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { TEMPLATE, append, find, parse, remove, setDone, summary } from './todo'
 import type { Task } from './todo'
-import type { MenuItem, MenuListPost, MenuRow } from './menu-list'
+import { fileIcon, folderIcon, iconSetOf, taskIcon } from './icons'
+import type { Icon, TaskState } from './icons'
+import type { MenuItem, MenuListPost, MenuRow, RowPart } from './menu-list'
 
 const PANE = 'sidebar'
 const TITLE = 'Sidebar'
@@ -233,7 +235,14 @@ const taskMenu = (task: Task): MenuItem[] => [
 // Indata till ett registrerat verktyg ligger direkt på händelsen.
 const inputOf = (e: object) => e as Record<string, unknown>
 
-export const register: Register = on => {
+// En ikon och mellanslaget efter den, eller ingenting när ikoner är avstängda.
+const iconParts = (icon: Icon | undefined): RowPart[] =>
+  icon ? [icon.color ? { text: `${icon.glyph} `, color: icon.color } : { text: `${icon.glyph} ` }] : []
+
+export const register: Register = (on, options) => {
+  // Inställningen `icons` i plugin.json: unicode (standard), nerdfont eller none.
+  const icons = iconSetOf(options.icons)
+
   // Trädet följer agenten: en `cd` i Bash (eller /cd) flyttar det dit.
   on('classic.CwdChanged', async ($, e, next) => {
     await update($, agentCwd, () => e.new_cwd).catch(() => {})
@@ -416,51 +425,56 @@ export const register: Register = on => {
     const doneCount = tasks.filter(task => task.isDone).length
     const current = tasks.find(task => !task.isDone)
 
+    // Radernas delar, som både menyregionerna och knapparna (utan Client) ritar.
+    const dirParts = (row: Extract<Row, { kind: 'dir' }>): RowPart[] => [
+      { text: row.prefix, dim: true },
+      { text: row.isOpen ? '▾ ' : '▸ ', color: 'yellow' },
+      ...iconParts(folderIcon(row.isOpen, icons)),
+      { text: `${row.name}/`, color: 'blue', bold: true },
+    ]
+    const fileParts = (row: Extract<Row, { kind: 'file' }>): RowPart[] => [
+      { text: `${row.prefix}─ `, dim: true },
+      ...iconParts(fileIcon(row.name, icons)),
+      row.path === selected ? { text: `${row.name} ◂`, color: 'cyan', bold: true } : { text: row.name },
+    ]
+    const taskParts = (task: Task): RowPart[] => {
+      const isShown = shownTasks.has(task.header)
+      const state: TaskState = task.isDone ? 'done' : task === current ? 'current' : 'open'
+
+      return [
+        { text: task.content.length > 0 ? (isShown ? '▾ ' : '▸ ') : '  ', color: 'yellow' },
+        ...iconParts(taskIcon(state, icons)),
+        { text: task.header, dim: task.isDone, bold: state === 'current', strike: task.isDone },
+      ]
+    }
+    const drawParts = (parts: RowPart[]) =>
+      parts.map(part => (
+        <Text
+          color={part.color}
+          dimColor={part.dim}
+          strikethrough={part.strike}
+          weight={part.bold ? 'bold' : 'regular'}
+        >
+          {part.text}
+        </Text>
+      ))
+
     // Raderna som menyregionerna ritar, en per skärmrad.
     const treeMenuRows: MenuRow[] = rows.map(row =>
       row.kind === 'dir'
-        ? {
-            id: row.path,
-            left: 'toggle',
-            menu: TREE_MENU,
-            parts: [
-              { text: row.prefix, dim: true },
-              { text: row.isOpen ? '▾ ' : '▸ ', color: 'yellow' },
-              { text: `${row.name}/`, color: 'blue', bold: true },
-            ],
-          }
+        ? { id: row.path, left: 'toggle', menu: TREE_MENU, parts: dirParts(row) }
         : row.kind === 'file'
-          ? {
-              id: row.path,
-              left: 'open',
-              menu: FILE_MENU,
-              parts:
-                row.path === selected
-                  ? [{ text: `${row.prefix}─ `, dim: true }, { text: `${row.name} ◂`, color: 'cyan', bold: true }]
-                  : [{ text: `${row.prefix}─ `, dim: true }, { text: row.name }],
-            }
+          ? { id: row.path, left: 'open', menu: FILE_MENU, parts: fileParts(row) }
           : { id: '', menu: TREE_MENU, parts: [{ text: `${row.prefix}└─ … ${row.count} till`, dim: true }] },
     )
     const taskMenuRows: MenuRow[] = tasks.flatMap(task => {
-      const isShown = shownTasks.has(task.header)
-      const isCurrent = task === current
-      const arrow = task.content.length > 0 ? (isShown ? '▾ ' : '▸ ') : '  '
-      const mark = task.isDone ? '[x] ' : isCurrent ? '[>] ' : '[ ] '
       const base = { id: String(task.number), left: 'toggle', menu: taskMenu(task) }
 
       return [
-        {
-          ...base,
-          parts: [
-            { text: arrow, color: 'yellow' },
-            // En Clients props är JSON: ingen nyckel får vara undefined.
-            task.isDone || isCurrent
-              ? { text: mark, color: task.isDone ? 'green' : 'cyan' }
-              : { text: mark },
-            { text: task.header, dim: task.isDone, bold: isCurrent },
-          ],
-        },
-        ...(isShown ? task.content.map(line => ({ ...base, parts: [{ text: `      ${line}`, dim: true }] })) : []),
+        { ...base, parts: taskParts(task) },
+        ...(shownTasks.has(task.header)
+          ? task.content.map(line => ({ ...base, parts: [{ text: `      ${line}`, dim: true }] }))
+          : []),
       ]
     })
 
@@ -493,22 +507,11 @@ export const register: Register = on => {
             rows.map(row =>
               row.kind === 'dir' ? (
                 <Button key={`dir:${row.path}`} plain onPress={() => toggleDir($, row.path)}>
-                  <Text dimColor>{row.prefix}</Text>
-                  <Text color="yellow">{row.isOpen ? '▾ ' : '▸ '}</Text>
-                  <Text color="blue" weight="bold">
-                    {row.name}/
-                  </Text>
+                  {drawParts(dirParts(row))}
                 </Button>
               ) : row.kind === 'file' ? (
                 <Button key={`file:${row.path}`} plain onPress={() => openInEditor($, row.path)}>
-                  <Text dimColor>{row.prefix}─ </Text>
-                  {row.path === selected ? (
-                    <Text color="cyan" weight="bold">
-                      {row.name} ◂
-                    </Text>
-                  ) : (
-                    row.name
-                  )}
+                  {drawParts(fileParts(row))}
                 </Button>
               ) : (
                 <Text dimColor>
@@ -549,24 +552,12 @@ export const register: Register = on => {
           {!Client &&
             tasks.map(task => {
               const isShown = shownTasks.has(task.header)
-              const isCurrent = task === current
-              const hasContent = task.content.length > 0
 
               return (
                 <Box key={`task-box:${task.number}`} flexDirection="column">
                   <Box flexDirection="row" justifyContent="space-between">
                     <Button key={`task:${task.number}`} plain onPress={() => toggleTaskHeader($, task.header)}>
-                      <Text color="yellow">{hasContent ? (isShown ? '▾ ' : '▸ ') : '  '}</Text>
-                      <Text color={task.isDone ? 'green' : isCurrent ? 'cyan' : undefined}>
-                        {task.isDone ? '[x] ' : isCurrent ? '[>] ' : '[ ] '}
-                      </Text>
-                      <Text
-                        dimColor={task.isDone}
-                        strikethrough={task.isDone}
-                        weight={isCurrent ? 'bold' : 'regular'}
-                      >
-                        {task.header}
-                      </Text>
+                      {drawParts(taskParts(task))}
                     </Button>
                     <Box flexDirection="row" gap={1}>
                       {!task.isDone && (

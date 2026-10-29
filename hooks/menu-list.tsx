@@ -7,7 +7,7 @@ import type { ClientModule } from 'claude-code'
 
 export type MenuItem = { action: string; label: string; color?: string }
 
-export type RowPart = { text: string; color?: string; dim?: boolean; bold?: boolean }
+export type RowPart = { text: string; color?: string; dim?: boolean; bold?: boolean; strike?: boolean }
 
 export type MenuRow = {
   // Vad raden pekar ut, för pluginet: en uppgifts nummer, en mapps sökväg.
@@ -76,7 +76,12 @@ const MenuList: ClientModule<MenuListProps, State> = (props, surface) => {
       {rows.map(row => (
         <Text wrap="truncate-end">
           {row.parts.map(part => (
-            <Text color={part.color} dimColor={part.dim} weight={part.bold ? 'bold' : 'regular'}>
+            <Text
+              color={part.color}
+              dimColor={part.dim}
+              strikethrough={part.strike}
+              weight={part.bold ? 'bold' : 'regular'}
+            >
               {part.text}
             </Text>
           ))}

@@ -1,8 +1,17 @@
 {
   "name": "sidebar",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Sidopanel för Claude Code: filträd i terminalstil och projektets TODO.md, som agenten styr arbetet med",
   "author": { "name": "ZeldaStudio49281" },
   "license": "MIT",
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "icons": {
+      "type": "string",
+      "title": "Ikoner",
+      "description": "Ikonerna i filträdet och uppgiftslistan: unicode (fungerar i alla terminaler), nerdfont (kräver ett Nerd Font-typsnitt) eller none (inga ikoner)",
+      "default": "unicode",
+      "options": ["unicode", "nerdfont", "none"]
+    }
+  }
 }
