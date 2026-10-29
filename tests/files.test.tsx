@@ -133,6 +133,28 @@ test('högerklick på en fil: menyn har Öppna i VS Code och Infoga sökväg', a
   await ui.unmount()
 })
 
+test('högerklick på en mapp eller tom yta öppnar mappen i ett nytt VS Code-fönster', async ($, on) => {
+  const { runs } = fakeProject(on, { hasCodeCmd: false })
+  const ui = await $.ui.mount(PANE)
+
+  // Rad 0 är src/.
+  await ui.pointer({ in: 'tree', type: 'down', x: 3, y: 0, button: 'right' })
+  expect(await ui.find({ in: 'tree', text: /Uppdatera/ })).toBeDefined()
+  expect(await ui.find({ in: 'tree', text: /Fäll ihop alla/ })).toBeDefined()
+  await choose(ui, 'tree', 'Öppna i VS Code')
+  expect(runs).toEqual([{ argv: ['code', '--new-window', `${ROOT}\\src`] }])
+  // En mapp markeras inte som vald fil, och fälls inte ut av att öppnas.
+  expect(await ui.find({ in: 'tree', text: /◂/ })).toBeUndefined()
+  expect(await ui.find({ in: 'tree', text: /main\.ts/ })).toBeUndefined()
+
+  // Långt under sista raden: katalogen som trädet visar.
+  await ui.pointer({ in: 'tree', type: 'down', x: 10, y: 8, button: 'right' })
+  await choose(ui, 'tree', 'Öppna i VS Code')
+  expect(runs.at(-1)).toEqual({ argv: ['code', '--new-window', ROOT] })
+
+  await ui.unmount()
+})
+
 test('utan Client (vscode-ytan) öppnar en filknapp filen i VS Code', async ($, on) => {
   const { runs } = fakeProject(on, { hasCodeCmd: false })
   const ui = await $.ui.mount({ ...PANE, surface: 'vscode' })

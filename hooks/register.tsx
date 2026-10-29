@@ -176,12 +176,11 @@ async function vscodeCommand($: EngineInterface): Promise<{ argv: string[]; env?
   }
 }
 
-// Öppnar filen i VS Code, i fönstret som redan är öppet om det finns ett.
-async function openInEditor($: EngineInterface, path: string) {
-  await update($, selectedFile, () => path)
+// Startar VS Code med sökvägen och säger i en toast hur det gick.
+async function runVSCode($: EngineInterface, flag: string, path: string) {
   const { argv, env } = await vscodeCommand($)
   const ran = await $.process
-    .run([...argv, '--reuse-window', path], { timeoutMs: 15000, ...(env ? { env } : {}) })
+    .run([...argv, flag, path], { timeoutMs: 15000, ...(env ? { env } : {}) })
     .catch(() => undefined)
   $.ui.toast(
     ran?.exitCode === 0
@@ -189,6 +188,17 @@ async function openInEditor($: EngineInterface, path: string) {
       : 'Kunde inte starta VS Code: finns kommandot `code` på PATH?',
   )
 }
+
+// Öppnar filen i VS Code, i fönstret som redan är öppet om det finns ett.
+async function openInEditor($: EngineInterface, path: string) {
+  await update($, selectedFile, () => path)
+  await runVSCode($, '--reuse-window', path)
+}
+
+// Öppnar mappen i ett nytt VS Code-fönster: i det öppna skulle den ersätta
+// arbetsytan som redan finns där.
+const openFolderInEditor = ($: EngineInterface, path: string) =>
+  runVSCode($, '--new-window', path)
 
 // Skriver in filens sökväg i prompten där markören står: relativt agentens
 // katalog när filen ligger under den, annars absolut; inom citattecken om
@@ -203,7 +213,10 @@ async function insertPath($: EngineInterface, path: string) {
 }
 
 // Menyerna, som `menu-list.tsx` visar vid högerklick.
+// På en mapp och på trädets tomma yta (där pekar `open-dir` ut katalogen
+// trädet visar).
 const TREE_MENU: MenuItem[] = [
+  { action: 'open-dir', label: 'Öppna i VS Code', color: 'cyan' },
   { action: 'refresh', label: 'Uppdatera' },
   { action: 'collapse', label: 'Fäll ihop alla' },
 ]
@@ -356,6 +369,7 @@ export const register: Register = on => {
       if (action === 'toggle') await toggleDir($, id)
       if (action === 'collapse') await update($, expanded, () => [])
       if (action === 'open') await openInEditor($, id)
+      if (action === 'open-dir') await openFolderInEditor($, id || (await treeDir($)))
       if (action === 'insert') await insertPath($, id)
     } else if (e.element === 'tasks') {
       const number = Number(id)
