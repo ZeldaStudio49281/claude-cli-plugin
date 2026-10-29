@@ -1,0 +1,5 @@
+{
+  "name": "claude-cli-plugin",
+  "owner": { "name": "ZeldaStudio49281" },
+  "plugins": [{ "name": "sidebar", "source": "./" }]
+}

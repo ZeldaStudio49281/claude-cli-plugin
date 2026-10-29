@@ -1,0 +1,8 @@
+{
+  "name": "sidebar",
+  "version": "0.1.0",
+  "description": "Sidopanel för Claude Code: filträd i terminalstil och projektets TODO.md, som agenten styr arbetet med",
+  "author": { "name": "ZeldaStudio49281" },
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

@@ -1,0 +1,5 @@
+# Typerna som Claude Code skriver när modden laddas.
+.claude-plugin/types/
+
+# Den lokala arbetslistan, som sidopanelen visar.
+/TODO.md
